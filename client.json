@@ -1,0 +1,8 @@
+{
+  "host_ip": "@hostip",
+  "host_port": 15522,
+  "input_file": "input.txt",
+  "output_folder": "output/",
+  "cache_folder": ".cache/",
+  "buffer": 4096
+}
