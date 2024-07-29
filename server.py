@@ -52,8 +52,8 @@ while True:
                     client_socket.sendall(bytes_read)
         except Exception as e:
             print(f"Error: {e}")
-        finally:
-            client_socket.close()
-            print(f"[-] Client ({client_host}:{client_port}) disconnected.")
+        # finally:
+            # client_socket.close()
+            # print(f"[-] Client ({client_host}:{client_port}) disconnected.")
 
 server_socket.close()
