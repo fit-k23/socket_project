@@ -1,58 +1,59 @@
-import signal
+import os
 import socket
 import json
-import sys
-import threading
 
-# Server configuration
-from cfg import SERVER_HOST, SERVER_PORT, BUFFER_SIZE
+from msg import *
+from utils import get_ip
 
-class PRIORITY:
-    NORMAL = 0
-    HIGH = 1
-    CRITICAL = 2
+data = json.load(open('server.json'))
 
-FILENAME = 'input.7z'  # Path to the file to send
+# print(len(MSG_NOTIFY_DATA_BUFFER))
 
-def handle_client(client_socket):
-    try:
-        with open(FILENAME, 'rb') as file:
-            while True:
-                bytes_read = file.read(BUFFER_SIZE)
-                if not bytes_read:
-                    break
-                client_socket.sendall(bytes_read)
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        client_socket.close()
+server_ip = get_ip(data['ip'])
+server_port = data['port']
+buffer = data['buffer']
 
-def start_server():
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(('', SERVER_PORT))
-    server_socket.listen()
-    print(f"[*] Listening on {SERVER_HOST}:{SERVER_PORT}")
+input_path = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), data['input_folder']))
 
-    def signal_handler(sig, frame):
-        print("\n[!] Shutting down the server...")
-        server_socket.close()
-        sys.exit(0)
+download_file_list = os.listdir(input_path)
+# print(download_file_list)
 
-    signal.signal(signal.SIGINT, signal_handler)
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket.bind((server_ip, server_port))
+server_socket.listen()
 
-    while True:
+print(f"[*] Hosting on {server_ip}:{server_port}")
+
+while True:
+    client_socket, addr = server_socket.accept()
+    print(f"[+] Accepted connection from {addr}")
+
+    t1 = '\n'.join(download_file_list).encode('utf-8')
+    client_socket.sendall((MSG_NOTIFY_DATA_BUFFER + str(len(t1))).encode('utf-8'))
+    client_socket.sendall('\n'.join(download_file_list).encode('utf-8'))
+    data = client_socket.recv(buffer).decode('utf-8')
+
+    client_host, client_port = client_socket.getpeername()
+
+    if not data:
+        continue
+
+    for file in data.splitlines():
+        if not os.path.exists(input_path + data):
+            print(f"[!] File ({data}) does not exist.")
+            continue
+        print(f"[*] Client ({client_host}:{client_port}) requested to download {file}")
         try:
-            client_socket, addr = server_socket.accept()
-            print(f"[+] Accepted connection from {addr}")
-            client_handler = threading.Thread(target=handle_client, args=(client_socket,))
-            client_handler.start()
-        except KeyboardInterrupt:
-            signal_handler(None, None)
-            break
+            with open(input_path + file, 'rb') as f:
+                while True:
+                    bytes_read = f.read(buffer)
+                    if not bytes_read:
+                        break
+                    client_socket.sendall(bytes_read)
+        except Exception as e:
+            print(f"Error: {e}")
+        finally:
+            client_socket.close()
+            print(f"[-] Client ({client_host}:{client_port}) disconnected.")
 
-
-if __name__ == "__main__":
-    try:
-        start_server()
-    except KeyboardInterrupt:
-        print("\n[!] Client interrupted.")
+server_socket.close()
