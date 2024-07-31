@@ -1,4 +1,7 @@
 file1.txt
 meow.txt
 hala
+cat.tma
 lmao.txt
+video.mp4
+test_123.txt
