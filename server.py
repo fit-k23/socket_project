@@ -68,10 +68,14 @@ while True:
 						bytes_read = f.read(chunk_buffer)
 						if not bytes_read:
 							break
+						raw_buffer_len = len(bytes_read)
 						client_socket.sendall(bytes_read)
 			except Exception as e:
 				print(f"Error: {e}")
 			finally:
-				client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer).encode('utf-8'))
+				if raw_buffer_len < chunk_buffer:
+					client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
+				else:
+					client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer))
 				# print(f"[-] Client ({client_host}:{client_port}) disconnected.")
 		break

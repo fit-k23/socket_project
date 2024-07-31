@@ -92,7 +92,7 @@ def start_client(config_file: str = 'client.json') -> bool:
 	if result == 0:
 		def handle_exit(signum, frame):
 			print("[*] Client is shutting down.")
-			client_socket.sendall(MSG_CLIENT_DISCONNECT.encode('utf-8'))
+			client_socket.sendall(MSG_CLIENT_DISCONNECT)
 			client_socket.close()
 			sys.exit(0)
 
@@ -118,6 +118,7 @@ def start_client(config_file: str = 'client.json') -> bool:
 			print(f"[>] Requested File List: {request_files}")
 			client_socket.send('\n'.join(request_files).encode('utf-8'))
 			# time.sleep(2)
+			flag_cached_trash = False
 			for request_file in request_files[:]:
 				file_id = get_file_enum_id(request_file)
 				output_file = output_folder + request_file
@@ -138,11 +139,12 @@ def start_client(config_file: str = 'client.json') -> bool:
 							print("End Section.")
 							break
 
-						if MSG_FILE_TRANSFER_END.encode('utf-8') in bytes_read:
+						if MSG_FILE_TRANSFER_END in bytes_read:
 							print("End a file")
-							bytes_read = bytes_read.rstrip(MSG_FILE_TRANSFER_END.encode('utf-8'))
+							print(bytes_read)
+							bytes_read = bytes_read.split(MSG_FILE_TRANSFER_END)[0]
+							print(bytes_read)
 							done = True
-							break
 
 						# print(f"[>] Data Received: {bytes_read}")
 						size += f.write(bytes_read)
