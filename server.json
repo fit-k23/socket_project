@@ -1,6 +1,7 @@
 {
   "ip": "@all",
   "port": 15522,
-  "input_folder": "input/",
-  "buffer": 4096
+  "buffer": 4096,
+  "max_clients": 1,
+  "input_folder": "input/"
 }

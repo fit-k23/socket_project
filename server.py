@@ -39,7 +39,7 @@ while True:
 
     t1 = json.dumps(parse_file_info(input_path), separators=(',', ':'))
     t1l = len(t1)
-    client_socket.sendall((MSG_NOTIFY_DATA_BUFFER + str(len(t1))).ljust(32).encode('utf-8'))
+    client_socket.sendall((MSG_NOTIFY_DATA_BUFFER + str(len(t1)) + ":" + str(buffer)).ljust(32).encode('utf-8'))
     client_socket.sendall(t1.encode('utf-8'))
     data = client_socket.recv(buffer).decode('utf-8')
 
