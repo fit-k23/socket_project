@@ -69,12 +69,22 @@ while True:
 						if not bytes_read:
 							break
 						raw_buffer_len = len(bytes_read)
+						if raw_buffer_len < chunk_buffer:
+							print(raw_buffer_len)
+							print(bytes_read)
+							print(('_' * chunk_buffer).encode('utf-8'))
+							print(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len, b'_'))
+							print(len(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len, b'_')))
+							print(len((bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len, b'_')).decode('windows-1252')))
 						client_socket.sendall(bytes_read)
 			except Exception as e:
 				print(f"Error: {e}")
 			finally:
 				if raw_buffer_len < chunk_buffer:
-					client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
+					if raw_buffer_len + len(MSG_FILE_TRANSFER_END) > chunk_buffer:
+						client_socket.sendall(b'\0' * (chunk_buffer - raw_buffer_len))
+					else:
+						client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
 				else:
 					client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer))
 				# print(f"[-] Client ({client_host}:{client_port}) disconnected.")

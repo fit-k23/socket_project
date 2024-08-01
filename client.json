@@ -1,6 +1,6 @@
 {
   "host_ip": "@hostip",
-  "host_port": 15522,
+  "host_port": 15134,
   "input_file": "input.txt",
   "input_sleep": 0,
   "output_folder": "output/"

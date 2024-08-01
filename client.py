@@ -127,8 +127,9 @@ def start_client(config_file: str = 'client.json') -> bool:
 				done: bool = False
 				size: int = 0
 				total_size: int = 0
+				file_size = int(server_files_data[file_id]['size'])
 				with open(output_file, 'wb') as f:
-					while True:
+					while size < file_size:
 						# print(f"\r[*] Downloading : {size}")
 						if done:
 							break
@@ -138,6 +139,9 @@ def start_client(config_file: str = 'client.json') -> bool:
 						if not bytes_read:
 							print("End Section.")
 							break
+
+						if b'[' in bytes_read and MSG_FILE_TRANSFER_END not in bytes_read:
+							print(bytes_read, '\n')
 
 						if MSG_FILE_TRANSFER_END in bytes_read:
 							print("End a file")
