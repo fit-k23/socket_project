@@ -157,7 +157,7 @@ def start_client(config_file: str = 'client.json') -> bool:
 				print(total_size)
 				print("Still download?")
 			print("End download. Wait until death...")
-			break
+			# break
 	else:
 		print(f"[!] Client failed to connect to ({host_ip}:{host_port}) ({result})")
 		client_socket.close()
