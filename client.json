@@ -1,5 +1,5 @@
 {
-  "host_ip": "@hostip",
+  "host_ip": "@localhost",
   "host_port": 15134,
   "input_file": "input.txt",
   "input_sleep": 0,

@@ -89,6 +89,7 @@ while True:
 				# 	else:
 				# 		client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
 				# else:
-				client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer))
+				if raw_buffer_len >= chunk_buffer:
+					client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer))
 				# print(f"[-] Client ({client_host}:{client_port}) disconnected.")
 		break
