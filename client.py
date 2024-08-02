@@ -121,8 +121,8 @@ def start_client(config_file: str = 'client.json') -> bool:
 			flag_cached_trash = False
 
 			while True:
-				client_socket.recv(chunk_buffer)
-				print(chunk_buffer)
+				bytes_read = client_socket.recv(chunk_buffer)
+				print(bytes_read)
 
 			for request_file in request_files[:]:
 				file_id = get_file_enum_id(request_file)
