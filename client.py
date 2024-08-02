@@ -52,7 +52,7 @@ def generate_request_file(input_file_path: str, silent: bool = False) -> bool:
 			request_files_updates.remove(request_file)
 			continue
 		if os.path.isfile(file_path):
-			if get_file_size(file_path) != server_files_data[file_id]['size']:
+			if get_file_size(file_path) < server_files_data[file_id]['size']: # TODO: This is wrong
 				if not silent:
 					print(
 						f"[!] The requested file \"{request_file}\" haven't done downloading yet. Re-queued to be downloaded!")
@@ -129,7 +129,7 @@ def start_client(config_file: str = 'client.json') -> bool:
 				total_size: int = 0
 				file_size = int(server_files_data[file_id]['size'])
 				with open(output_file, 'wb') as f:
-					while True:
+					while size < file_size:
 						# print(f"\r[*] Downloading : {size}")
 						if done:
 							break
