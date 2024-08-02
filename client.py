@@ -119,6 +119,11 @@ def start_client(config_file: str = 'client.json') -> bool:
 			client_socket.send('\n'.join(request_files).encode('utf-8'))
 			# time.sleep(2)
 			flag_cached_trash = False
+
+			while True:
+				client_socket.recv(chunk_buffer)
+				print(chunk_buffer)
+
 			for request_file in request_files[:]:
 				file_id = get_file_enum_id(request_file)
 				output_file = output_folder + request_file
