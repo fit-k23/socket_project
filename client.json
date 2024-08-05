@@ -1,5 +1,5 @@
 {
-  "host_ip": "192.168.1.6",
+  "host_ip": "@localhost",
   "host_port": 15134,
   "input_file": "input.txt",
   "input_sleep": 0,
