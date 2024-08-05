@@ -120,10 +120,6 @@ def start_client(config_file: str = 'client.json') -> bool:
 			# time.sleep(2)
 			flag_cached_trash = False
 
-			while True:
-				bytes_read = client_socket.recv(chunk_buffer)
-				print(bytes_read)
-
 			for request_file in request_files[:]:
 				file_id = get_file_enum_id(request_file)
 				output_file = output_folder + request_file
@@ -139,6 +135,8 @@ def start_client(config_file: str = 'client.json') -> bool:
 						if done:
 							break
 						bytes_read = client_socket.recv(chunk_buffer)
+						if len(bytes_read) != chunk_buffer:
+							print(f"[!] Received {bytes_read} bytes instead of {chunk_buffer}.")
 						total_size += len(bytes_read)
 						# print(f"[>] Raw Data Received: {bytes_read}")
 						if not bytes_read:
@@ -166,7 +164,7 @@ def start_client(config_file: str = 'client.json') -> bool:
 					print("Closing file.")
 					f.close()
 				print(
-					f"Downloaded {size}/{server_files_data[file_id]['size']} ({size / server_files_data[file_id]['size'] * 100:0.4f}).")
+					f"Downloaded {size}/{server_files_data[file_id]['size']} ({size / server_files_data[file_id]['size'] * 100:0.4f}%).")
 				print(total_size)
 				print("Still download?")
 			print("End download. Wait until death...")

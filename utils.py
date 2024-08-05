@@ -1,6 +1,5 @@
 import socket
 
-
 def get_ip(ip: str = "@all") -> str:
 	match ip:
 		case '@all':
@@ -9,6 +8,8 @@ def get_ip(ip: str = "@all") -> str:
 			return '127.0.0.1'
 		case '@hostip':
 			return socket.gethostbyname(socket.gethostname())
+		case '@broadcast':
+			return ''
 		case _:
 			try:
 				socket.inet_aton(ip)

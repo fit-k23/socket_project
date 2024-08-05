@@ -8,6 +8,8 @@ from utils import get_ip
 
 data = json.load(open('server.json'))
 
+print(sys.argv)
+
 server_ip = get_ip(data['ip'])
 server_port = data['port']
 chunk_buffer = data['buffer']
@@ -96,3 +98,9 @@ while True:
 					print(MSG_FILE_TRANSFER_END.ljust(chunk_buffer))
 				# print(f"[-] Client ({client_host}:{client_port}) disconnected.")
 		break
+
+def startServer(ip: str, port: int, buffer: int, input_folder: str, max_users: int = 1, chunk_order: bool = False) -> bool:
+
+	return True
+
+# if __name__ == '__main__':
