@@ -137,8 +137,15 @@ def start_client(config_file: str = 'client.json') -> bool:
 						if done:
 							break
 						bytes_read = client_socket.recv(chunk_buffer)
-						if len(bytes_read) != chunk_buffer:
-							print(f"[!] Received {len(bytes_read)} bytes instead of {chunk_buffer}.")
+						l = len(bytes_read)
+						while l < chunk_buffer:
+							bytes_read += client_socket.recv(chunk_buffer - l)
+							l = len(bytes_read)
+
+						# if len(bytes_read) < chunk_buffer:
+						# 	bytes_read += client_socket.recv(chunk_buffer)
+						# if len(bytes_read) != chunk_buffer:
+							# print(f"[!] Received {len(bytes_read)} bytes instead of {chunk_buffer}.")
 						total_size += len(bytes_read)
 						# print(f"[>] Raw Data Received: {bytes_read}")
 						if not bytes_read:
