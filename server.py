@@ -6,17 +6,7 @@ import sys
 from msg import *
 from utils import get_ip
 
-data = json.load(open('server.json'))
-
 print(sys.argv)
-
-server_ip = get_ip(data['ip'])
-server_port = data['port']
-chunk_buffer = data['buffer']
-
-input_path = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), data['input_folder']))
-os.makedirs(input_path, exist_ok=True)
-
 
 def parse_file_info(directory: str):
 	files_info = []
@@ -29,78 +19,89 @@ def parse_file_info(directory: str):
 			})
 	return files_info
 
+def startServer(ip: str, port: int, buffer: int, input_folder: str = "input/", max_users: int = 1, chunk_order: bool = False):
+	input_path = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), input_folder))
+	os.makedirs(input_path, exist_ok=True)
 
-print(parse_file_info(input_path))
+	server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	server_socket.bind((ip, port))
+	server_socket.listen()
 
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind((server_ip, server_port))
-server_socket.listen()
-
-print(f"[*] Hosting on {server_ip}:{server_port}")
-
-while True:
-	client_socket, addr = server_socket.accept()
-	print(f"[+] Accepted connection from client {addr}")
-	client_host, client_port = client_socket.getpeername()
-
-	t1 = json.dumps(parse_file_info(input_path), separators=(',', ':'))
-	t1l = len(t1)
-	client_socket.sendall((MSG_NOTIFY_DATA_BUFFER + str(len(t1)) + ":" + str(chunk_buffer)).ljust(32).encode('utf-8'))
-	client_socket.sendall(t1.encode('utf-8'))
-
+	print(f"[*] Hosting on {server_ip}:{server_port}")
 	while True:
-		try:
-			data = client_socket.recv(chunk_buffer)
-			if not data:
-				break
-			if MSG_CLIENT_DISCONNECT in data:
-				print(f"[-] Disconnected with client ({client_host}:{client_port}).")
-				break
-		except ConnectionResetError:
-			break
+		client_socket, addr = server_socket.accept()
+		print(f"[+] Accepted connection from client {addr}")
+		client_host, client_port = client_socket.getpeername()
 
-		for file in data.decode().splitlines():
-			if not os.path.exists(input_path + file):
-				print(f"[!] File \"{file}\" does not exist.")
-				continue
-			print(f"[*] Client ({client_host}:{client_port}) requested to download {file}")
+		t1 = json.dumps(parse_file_info(input_path), separators=(',', ':'))
+		t1l = len(t1)
+		client_socket.sendall((MSG_NOTIFY_DATA_BUFFER + str(len(t1)) + ":" + str(chunk_buffer)).ljust(32).encode('utf-8'))
+		client_socket.sendall(t1.encode('utf-8'))
+
+		while True:
 			try:
-				with open(input_path + file, 'rb') as f:
-					while True:
-						bytes_read = f.read(chunk_buffer)
-						if not bytes_read:
+				response = client_socket.recv(chunk_buffer)
+				if not response:
+					break
+				if MSG_CLIENT_DISCONNECT in response:
+					print(f"[-] Disconnected with client ({client_host}:{client_port}).")
+					break
+			except ConnectionResetError:
+				break
+
+			for file in response.decode().splitlines():
+				if not os.path.exists(input_path + file):
+					print(f"[!] File \"{file}\" does not exist.")
+					continue
+				print(f"[*] Client ({client_host}:{client_port}) requested to download {file}")
+				try:
+					with open(input_path + file, 'rb') as f:
+						while True:
+							print("L0")
+							bytes_read = f.read(chunk_buffer)
+							print("L0.5")
+							if not bytes_read:
+								break
+							print("L0.75")
+							raw_buffer_len = len(bytes_read)
+							if raw_buffer_len < chunk_buffer:
+								# print(raw_buffer_len)
+								# print(bytes_read)
+								# print(('_' * chunk_buffer).encode('utf-8'))
+								# print(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len, b'_'))
+								# print(len(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len, b'_')))
+								# print(len((bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len, b'_')).decode('windows-1252')))
+								client_socket.sendall(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
+								print("L1")
+								print(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
+								break
+							else:
+								client_socket.sendall(bytes_read)
+								print("L2")
+								print(bytes_read)
+				except Exception as e:
+					print(f"Error: {e}")
+				finally:
+					# if raw_buffer_len < chunk_buffer:
+					# 	if raw_buffer_len + len(MSG_FILE_TRANSFER_END) > chunk_buffer:
+					# 		client_socket.sendall(b'\0' * (chunk_buffer - raw_buffer_len))
+					# 	else:
+					# 		client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
+					# else:
+					print("L2.5")
+					if raw_buffer_len >= chunk_buffer:
+						try:
+							client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer))
+						except ConnectionResetError:
 							break
-						raw_buffer_len = len(bytes_read)
-						if raw_buffer_len < chunk_buffer:
-							# print(raw_buffer_len)
-							# print(bytes_read)
-							# print(('_' * chunk_buffer).encode('utf-8'))
-							# print(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len, b'_'))
-							# print(len(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len, b'_')))
-							# print(len((bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len, b'_')).decode('windows-1252')))
-							client_socket.sendall(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
-							print(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
-							break
-						else:
-							client_socket.sendall(bytes_read)
-							print(bytes_read)
-			except Exception as e:
-				print(f"Error: {e}")
-			finally:
-				# if raw_buffer_len < chunk_buffer:
-				# 	if raw_buffer_len + len(MSG_FILE_TRANSFER_END) > chunk_buffer:
-				# 		client_socket.sendall(b'\0' * (chunk_buffer - raw_buffer_len))
-				# 	else:
-				# 		client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
-				# else:
-				if raw_buffer_len >= chunk_buffer:
-					client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer))
-					print(MSG_FILE_TRANSFER_END.ljust(chunk_buffer))
-				# print(f"[-] Client ({client_host}:{client_port}) disconnected.")
-		break
+						print("L3")
+						print(MSG_FILE_TRANSFER_END.ljust(chunk_buffer))
+					print("L4")
 
-def startServer(ip: str, port: int, buffer: int, input_folder: str, max_users: int = 1, chunk_order: bool = False) -> bool:
+if __name__ == '__main__':
+	data = json.load(open('server.json'))
+	server_ip = get_ip(data['ip'])
+	server_port = data['port']
+	chunk_buffer = int(data['buffer'])
 
-	return True
-
-# if __name__ == '__main__':
+	startServer(server_ip, server_port, chunk_buffer)

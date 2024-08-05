@@ -27,6 +27,8 @@ def get_file_enum_id(file_name: str) -> int:
 
 def get_file_size(file_path) -> int:
 	"""Return the size of a file in bytes."""
+	if not os.path.isfile(file_path):
+		return -1
 	return os.path.getsize(file_path)
 
 
@@ -136,7 +138,7 @@ def start_client(config_file: str = 'client.json') -> bool:
 							break
 						bytes_read = client_socket.recv(chunk_buffer)
 						if len(bytes_read) != chunk_buffer:
-							print(f"[!] Received {bytes_read} bytes instead of {chunk_buffer}.")
+							print(f"[!] Received {len(bytes_read)} bytes instead of {chunk_buffer}.")
 						total_size += len(bytes_read)
 						# print(f"[>] Raw Data Received: {bytes_read}")
 						if not bytes_read:
