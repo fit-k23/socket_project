@@ -3,6 +3,28 @@ import os
 import signal
 import socket
 import sys
+import time
+import colorama
+import rich
+
+colorama.init()
+
+from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, TaskID, DownloadColumn, SpinnerColumn
+
+# import hashlib
+
+progress = Progress(
+    TextColumn("[bold blue]{task.description}"),
+	SpinnerColumn(),
+    BarColumn(),
+    "[progress.percentage] {task.percentage:>3.0f}%",
+    "•",
+    TimeElapsedColumn(),
+	DownloadColumn(),
+	# refresh_per_second=1
+)
+
+task_ids = {}
 
 from msg import *
 from utils import get_ip
@@ -14,6 +36,7 @@ chunk_buffer = 4096
 input_file = ""
 output_folder = ""
 
+input_file_hash = None
 
 def get_file_enum_id(file_name: str) -> int:
 	"""Get the index of a file in the server's file list by its name."""
@@ -27,23 +50,31 @@ def get_file_enum_id(file_name: str) -> int:
 
 def get_file_size(file_path) -> int:
 	"""Return the size of a file in bytes."""
-	if not os.path.isfile(file_path):
+	if not os.path.exists(file_path):
 		return -1
 	return os.path.getsize(file_path)
 
-
 def generate_request_file(input_file_path: str, silent: bool = False) -> bool:
-	global request_files
+	global request_files, input_file_hash
 	try:
 		with open(input_file_path, 'r') as f:
-			request_files_updates = f.read().splitlines()
+			file_data = f.read()
+			# file_hash = hashlib.sha256(file_data.encode()).hexdigest()
+			request_files_updates = file_data.splitlines()
 	except Exception as e:
 		if not silent:
 			print(f"[!] File Error: {e}")
 
+	# if input_file_hash is not None and input_file_hash == file_hash:
+	# 	return False
+
+	# input_file_hash = file_hash
+	# print("Updated files", request_files_updates)
+
 	for request_file in request_files_updates[:]:
 		if request_file.strip() == "":
-			print(f"[!] Empty Request File: {request_file}")
+			if not silent:
+				print(f"[!] Empty Request File: {request_file}")
 			request_files_updates.remove(request_file)
 			continue
 		file_id = get_file_enum_id(request_file)
@@ -56,8 +87,7 @@ def generate_request_file(input_file_path: str, silent: bool = False) -> bool:
 		if os.path.isfile(file_path):
 			if get_file_size(file_path) < server_files_data[file_id]['size']: # TODO: This is wrong
 				if not silent:
-					print(
-						f"[!] The requested file \"{request_file}\" haven't done downloading yet. Re-queued to be downloaded!")
+					print(f"[!] The requested file \"{request_file}\" haven't done downloading yet. Re-queued to be downloaded!")
 			else:
 				request_files_updates.remove(request_file)
 				continue
@@ -76,7 +106,7 @@ def start_client(config_file: str = 'client.json') -> bool:
 	data = json.load(open(config_file))
 	host_ip = get_ip(data['host_ip'] or '@hostip')
 	host_port: int = data['host_port'] or 15522
-	global chunk_buffer, server_files_data, input_file, output_folder
+	global chunk_buffer, server_files_data, input_file, output_folder, task_ids
 	input_sleep: int = data['input_sleep'] or 0
 	input_file = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), data['input_file']))
 	output_folder = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), data['output_folder']))
@@ -116,72 +146,77 @@ def start_client(config_file: str = 'client.json') -> bool:
 			if not request_files_changed:
 				continue
 
-			print(request_files)
 			print(f"[>] Requested File List: {request_files}")
-			client_socket.send('\n'.join(request_files).encode('utf-8'))
-			# time.sleep(2)
-			flag_cached_trash = False
 
-			for request_file in request_files[:]:
+			for request_file in request_files:
 				file_id = get_file_enum_id(request_file)
-				output_file = output_folder + request_file
-				print(f"[*] Downloading to : {output_file}")
-
-				done: bool = False
-				size: int = 0
-				total_size: int = 0
 				file_size = int(server_files_data[file_id]['size'])
-				with open(output_file, 'wb') as f:
-					while size < file_size:
-						# print(f"\r[*] Downloading : {size}")
-						if done:
-							break
-						bytes_read = client_socket.recv(chunk_buffer)
-						l = len(bytes_read)
-						while l < chunk_buffer:
-							bytes_read += client_socket.recv(chunk_buffer - l)
+				task_ids[request_file] = progress.add_task(f"[green]" + request_file, total=file_size, start=False)
+
+			client_socket.send('\n'.join(request_files).encode('utf-8'))
+
+			with progress:
+				for request_file in request_files[:]:
+					file_id = get_file_enum_id(request_file)
+					file_size = int(server_files_data[file_id]['size'])
+					output_file = output_folder + request_file
+					print(f"[*] Downloading to : {output_file}")
+
+					done: bool = False
+					size: int = 0
+					total_size: int = 0
+					file_size = int(server_files_data[file_id]['size'])
+					progress.start_task(task_ids[request_file])
+					with open(output_file, 'wb') as f:
+						while size < file_size:
+							if done:
+								break
+
+							bytes_read = client_socket.recv(chunk_buffer)
 							l = len(bytes_read)
 
-						# if len(bytes_read) < chunk_buffer:
-						# 	bytes_read += client_socket.recv(chunk_buffer)
-						# if len(bytes_read) != chunk_buffer:
-							# print(f"[!] Received {len(bytes_read)} bytes instead of {chunk_buffer}.")
-						total_size += len(bytes_read)
-						# print(f"[>] Raw Data Received: {bytes_read}")
-						if not bytes_read:
-							print("End Section.")
-							break
+							while l < chunk_buffer:
+								bytes_read += client_socket.recv(chunk_buffer - l)
+								l = len(bytes_read)
 
-						# if b'[' in bytes_read and MSG_FILE_TRANSFER_END not in bytes_read:
-						# 	print(bytes_read, '\n')
+							if l > file_size:
+								bytes_read = bytes_read[:l - file_size]
 
-						if MSG_FILE_TRANSFER_END in bytes_read:
-							print("End a file")
-							print(bytes_read)
-							bytes_read = bytes_read.split(MSG_FILE_TRANSFER_END)[0]
-							print(bytes_read)
-							if len(bytes_read) == 0:
-								print(f"[*] File downloaded. Moving to next file...")
-								continue
-							else:
-								done = True
+							total_size += len(bytes_read)
+							if not bytes_read:
+								break
 
-						# print(f"[>] Data Received: {bytes_read}")
-						size += f.write(bytes_read)
-					# print(f"Removing file \"{request_file}\" from list.")
+							if total_size > file_size:
+								print(f"[!] File size exceeds. {bytes_read}")
+
+							if MSG_FILE_TRANSFER_END in bytes_read:
+								# print("End a file")
+								# print(bytes_read)
+								bytes_read = bytes_read.split(MSG_FILE_TRANSFER_END)[0]
+								# print(bytes_read)
+								if len(bytes_read) == 0:
+									# print(f"[*] File downloaded. Moving to next file...")
+									continue
+								else:
+									done = True
+
+							diff = f.write(bytes_read)
+							size += diff
+							progress.update(task_ids[request_file], advance=diff)
+						# print("Closing file.")
+						f.close()
+					# progress.reset()
+					progress.console.print(f"[*] Downloaded [yellow]{request_file}[default].")
+					# print(f"[*] Downloaded {request_file}.")
+					# progress.remove_task(task_ids[request_file])
 					request_files.remove(request_file)
-					print("Closing file.")
-					f.close()
-				print(
-					f"Downloaded {size}/{server_files_data[file_id]['size']} ({size / server_files_data[file_id]['size'] * 100:0.4f}%).")
-				print(total_size)
-				print("Still download?")
-			print("End download. Wait until death...")
-			# break
+					# print(f"Downloaded {size}/{server_files_data[file_id]['size']} ({size / server_files_data[file_id]['size'] * 100:0.4f}%).")
+					# print(total_size)
+					# print("Still download?")
+				print("End download. Wait until death...")
 	else:
 		print(f"[!] Client failed to connect to ({host_ip}:{host_port}) ({result})")
 		client_socket.close()
-
 
 if __name__ == "__main__":
 	if len(sys.argv) < 2:

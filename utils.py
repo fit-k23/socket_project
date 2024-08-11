@@ -16,3 +16,4 @@ def get_ip(ip: str = "@all") -> str:
 			except socket.error:
 				raise Exception(f'Invalid ip: {ip}')
 			return ip
+

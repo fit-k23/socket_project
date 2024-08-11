@@ -57,28 +57,22 @@ def startServer(ip: str, port: int, buffer: int, input_folder: str = "input/", m
 				try:
 					with open(input_path + file, 'rb') as f:
 						while True:
-							print("L0")
+							# print("L0")
 							bytes_read = f.read(chunk_buffer)
-							print("L0.5")
+							# print("L0.5")
 							if not bytes_read:
 								break
-							print("L0.75")
+							# print("L0.75")
 							raw_buffer_len = len(bytes_read)
 							if raw_buffer_len < chunk_buffer:
-								# print(raw_buffer_len)
-								# print(bytes_read)
-								# print(('_' * chunk_buffer).encode('utf-8'))
-								# print(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len, b'_'))
-								# print(len(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len, b'_')))
-								# print(len((bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len, b'_')).decode('windows-1252')))
 								client_socket.sendall(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
-								print("L1")
+								# print("L1")
 								print(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
 								break
 							else:
 								client_socket.sendall(bytes_read)
-								print("L2")
-								print(bytes_read)
+								# print("L2")
+								# print(bytes_read)
 				except Exception as e:
 					print(f"Error: {e}")
 				finally:
