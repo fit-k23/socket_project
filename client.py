@@ -3,11 +3,13 @@ import os
 import signal
 import socket
 import sys
-# import hashlib
 import colorama
+from rich.progress_bar import ProgressBar
+
 colorama.init()
 
-from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, DownloadColumn, SpinnerColumn
+from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, DownloadColumn, SpinnerColumn, TaskID, \
+	Task
 
 progress = Progress(
     TextColumn("[bold blue]{task.description}"),
@@ -45,16 +47,10 @@ def generate_request_file(input_file_path: str, output_folder_path: str, silent:
 	try:
 		with open(input_file_path, 'r') as f:
 			file_data = f.read()
-			# file_hash = hashlib.sha256(file_data.encode()).hexdigest()
 			request_files_updates = file_data.splitlines()
 	except Exception as e:
 		if not silent:
 			print(f"[!] File Error: {e}")
-
-	# if input_file_hash is not None and input_file_hash == file_hash:
-	# 	return False
-	# input_file_hash = file_hash
-	# print("Updated files", request_files_updates)
 
 	for request_file in request_files_updates[:]:
 		if request_file.strip() == "":
@@ -83,7 +79,7 @@ def generate_request_file(input_file_path: str, output_folder_path: str, silent:
 	return False
 
 def start_client(server_ip: str, server_port: int, input_file: str = "input.txt", output_folder: str = "output/") -> bool:
-	global server_files_data, task_ids
+	global server_files_data, task_ids, progress
 	input_file_path = join_path(__file__, input_file)
 	output_folder_path = join_path(__file__, output_folder)
 	os.makedirs(output_folder, exist_ok=True)
@@ -135,12 +131,16 @@ def start_client(server_ip: str, server_port: int, input_file: str = "input.txt"
 				for request_file in request_files[:]:
 					file_id = get_file_enum_id(request_file)
 					output_file = output_folder + request_file
-					print(f"[*] Downloading to : {output_file}")
+					# print(f"[*] Downloading to : {output_file}")
+
+					# print(progress.tasks)
+					# print(task_ids)
 
 					done: bool = False
 					size: int = 0
 					total_size: int = 0
 					file_size = int(server_files_data[file_id]['size'])
+					# print(progress.tasks)
 					progress.start_task(task_ids[request_file])
 					with open(output_file, 'wb') as f:
 						while size < file_size:
@@ -161,16 +161,12 @@ def start_client(server_ip: str, server_port: int, input_file: str = "input.txt"
 							if not bytes_read:
 								break
 
-							if total_size > file_size:
-								print(f"[!] File size exceeds. {bytes_read}")
+							# if total_size > file_size:
+								# print(f"[!] File size exceeds. {bytes_read}")
 
 							if MSG_FILE_TRANSFER_END in bytes_read:
-								# print("End a file")
-								# print(bytes_read)
 								bytes_read = bytes_read.split(MSG_FILE_TRANSFER_END)[0]
-								# print(bytes_read)
 								if len(bytes_read) == 0:
-									# print(f"[*] File downloaded. Moving to next file...")
 									continue
 								else:
 									done = True
@@ -178,17 +174,36 @@ def start_client(server_ip: str, server_port: int, input_file: str = "input.txt"
 							diff = f.write(bytes_read)
 							size += diff
 							progress.update(task_ids[request_file], advance=diff)
-						# print("Closing file.")
 						f.close()
-					# progress.reset()
-					progress.console.print(f"[*] Downloaded [yellow]{request_file}[default].")
-					# print(f"[*] Downloaded {request_file}.")
-					# progress.remove_task(task_ids[request_file])
+
+					def get_task(tid: TaskID, p: Progress) -> Task|None:
+						for task_ins in p.tasks:
+							if tid == task_ins.id:
+								return task_ins
+						return None
+
+					task = get_task(task_ids[request_file], progress)
+
+					if task is not None:
+						renders = [
+							TextColumn("[bold blue]{task.description}"),
+							SpinnerColumn(),
+							BarColumn(),
+							# "[progress.percentage] {task.percentage:>3.0f}%",
+							# "•",
+							TimeElapsedColumn(),
+							DownloadColumn(),
+						]
+
+						download_log = ""
+
+						for render in renders:
+							download_log += str(render.render(task))
+						progress.console.print(f"[*] {download_log}")
+						progress.remove_task(task.id)
+						# print(f"Remove task {task.id}")
 					request_files.remove(request_file)
-					# print(f"Downloaded {size}/{server_files_data[file_id]['size']} ({size / server_files_data[file_id]['size'] * 100:0.4f}%).")
-					# print(total_size)
-					# print("Still download?")
-				print("End download. Wait until death...")
+				print("Download ended! Waiting for new request...")
 	else:
 		print(f"[!] Client failed to connect to ({server_ip}:{server_port}) ({result})")
 		client_socket.close()

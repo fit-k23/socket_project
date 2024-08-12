@@ -5,8 +5,6 @@ import sys
 
 from msg import *
 
-print(sys.argv)
-
 from utils import get_ip, parse_file_info, join_path
 
 def start_server(ip: str, port: int, chunk_buffer: int, input_folder: str = "input/"):
