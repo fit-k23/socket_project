@@ -3,15 +3,11 @@ import os
 import signal
 import socket
 import sys
-import time
+# import hashlib
 import colorama
-import rich
-
 colorama.init()
 
-from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, TaskID, DownloadColumn, SpinnerColumn
-
-# import hashlib
+from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, DownloadColumn, SpinnerColumn
 
 progress = Progress(
     TextColumn("[bold blue]{task.description}"),
@@ -27,16 +23,13 @@ progress = Progress(
 task_ids = {}
 
 from msg import *
-from utils import get_ip
+from utils import get_ip, get_file_size, join_path
 
 server_files_data = []
 request_files = []
 downloaded_files = []
-chunk_buffer = 4096
-input_file = ""
-output_folder = ""
 
-input_file_hash = None
+# input_file_hash = None
 
 def get_file_enum_id(file_name: str) -> int:
 	"""Get the index of a file in the server's file list by its name."""
@@ -47,15 +40,8 @@ def get_file_enum_id(file_name: str) -> int:
 		i += 1
 	return -1
 
-
-def get_file_size(file_path) -> int:
-	"""Return the size of a file in bytes."""
-	if not os.path.exists(file_path):
-		return -1
-	return os.path.getsize(file_path)
-
-def generate_request_file(input_file_path: str, silent: bool = False) -> bool:
-	global request_files, input_file_hash
+def generate_request_file(input_file_path: str, output_folder_path: str, silent: bool = False) -> bool:
+	global request_files#, input_file_hash
 	try:
 		with open(input_file_path, 'r') as f:
 			file_data = f.read()
@@ -67,7 +53,6 @@ def generate_request_file(input_file_path: str, silent: bool = False) -> bool:
 
 	# if input_file_hash is not None and input_file_hash == file_hash:
 	# 	return False
-
 	# input_file_hash = file_hash
 	# print("Updated files", request_files_updates)
 
@@ -78,7 +63,7 @@ def generate_request_file(input_file_path: str, silent: bool = False) -> bool:
 			request_files_updates.remove(request_file)
 			continue
 		file_id = get_file_enum_id(request_file)
-		file_path = output_folder + request_file
+		file_path = output_folder_path + request_file
 		if file_id == -1:
 			if not silent:
 				print(f"[!] The requested file \"{request_file}\" doesn't exist in server side.")
@@ -97,40 +82,31 @@ def generate_request_file(input_file_path: str, silent: bool = False) -> bool:
 			return True
 	return False
 
-
-def start_client(config_file: str = 'client.json') -> bool:
-	if not os.path.exists(config_file):
-		print(f"[!] Config file '{config_file}' does not exist!")
-		return False
-
-	data = json.load(open(config_file))
-	host_ip = get_ip(data['host_ip'] or '@hostip')
-	host_port: int = data['host_port'] or 15522
-	global chunk_buffer, server_files_data, input_file, output_folder, task_ids
-	input_sleep: int = data['input_sleep'] or 0
-	input_file = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), data['input_file']))
-	output_folder = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), data['output_folder']))
+def start_client(server_ip: str, server_port: int, input_file: str = "input.txt", output_folder: str = "output/") -> bool:
+	global server_files_data, task_ids
+	input_file_path = join_path(__file__, input_file)
+	output_folder_path = join_path(__file__, output_folder)
 	os.makedirs(output_folder, exist_ok=True)
-	if os.path.isfile(input_file):
-		print(f"[_] Configured input file: \"{data['input_file']}\" with sleep time {input_sleep}.")
+
+	if os.path.isfile(input_file_path):
+		print(f"[_] Configured input file: \"{input_file}\" was found.")
 	else:
 		print(f"[!] Configured input file \"{input_file}\" does not exist!")
 		return False
-	print(f"[_] Configured output path: \"{data['output_folder']}\".")
+	print(f"[_] Configured output path: \"{output_folder}\".")
 
 	client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	result = client_socket.connect_ex((host_ip, host_port))
+	result = client_socket.connect_ex((server_ip, server_port))
 
 	if result == 0:
 		def handle_exit(signum, frame):
-			print("[*] Client is shutting down.")
+			print("[*] Client was forced to shutting down.")
 			client_socket.sendall(MSG_CLIENT_DISCONNECT)
 			client_socket.close()
 			sys.exit(0)
 
 		signal.signal(signal.SIGINT, handle_exit)
-		print(f"[*] Client connected to {host_ip}:{host_port}")
-		# len("9223372036854775807\0") == 20 - 1
+		print(f"[*] Client connected to {server_ip}:{server_port}")
 		temp_sbd = client_socket.recv(32).decode('utf-8').split(MSG_NOTIFY_DATA_BUFFER)[-1].split(":")
 		temp_server_file_buffer_size = int(temp_sbd[0])  # TODO: Error checking: This might not get send correctly
 		chunk_buffer = int(temp_sbd[1] if len(temp_sbd) else 4096)  # ugly a$$ null coalescing
@@ -142,7 +118,7 @@ def start_client(config_file: str = 'client.json') -> bool:
 
 		disconnected = False
 		while not disconnected:
-			request_files_changed = generate_request_file(input_file, True)
+			request_files_changed = generate_request_file(input_file_path, output_folder_path, True)
 			if not request_files_changed:
 				continue
 
@@ -158,7 +134,6 @@ def start_client(config_file: str = 'client.json') -> bool:
 			with progress:
 				for request_file in request_files[:]:
 					file_id = get_file_enum_id(request_file)
-					file_size = int(server_files_data[file_id]['size'])
 					output_file = output_folder + request_file
 					print(f"[*] Downloading to : {output_file}")
 
@@ -215,11 +190,53 @@ def start_client(config_file: str = 'client.json') -> bool:
 					# print("Still download?")
 				print("End download. Wait until death...")
 	else:
-		print(f"[!] Client failed to connect to ({host_ip}:{host_port}) ({result})")
+		print(f"[!] Client failed to connect to ({server_ip}:{server_port}) ({result})")
 		client_socket.close()
 
+def handle_args(args) -> bool:
+	l = len(args)
+	if l > 3:
+		if args[1] == "-m":
+			server_ip = args[2]
+			server_port = int(args[3])
+
+			input_file: str = args[4] if l > 4 else "input.txt"
+			output_folder: str = args[5] if l > 5 else "output/"
+
+			start_client(server_ip, server_port, input_file, output_folder)
+			return True
+
+		if args[1] == "-h" or args[1] == "?":
+			print(f"[*] Usage:")
+			print(f"[*] 	   <config_file>	  						  Start client with config file.")
+			print(f"[*] 	-h 											  Show helps for all available args.")
+			print(f"[*] 	-m <in> <port> <input_file> <output_folder>	  Start client with manual inputs.")
+			return True
+
+	config_file = ""
+	if l < 2:
+		print(f"[!] Config file not set. Finding client.json in running folder...")
+		config_file = "client.json"
+
+	if l >= 2:
+		config_file = args[1]
+
+	if not config_file:
+		print(f"[!] Config file was empty!")
+		return False
+
+	if not os.path.exists(config_file):
+		print(f"[!] Config file '{config_file}' does not exist!")
+		return False
+
+	data = json.load(open(config_file))
+	server_ip: str = get_ip(data['host_ip'] if 'host_ip' in data else '@hostip')
+	server_port: int = data['host_port'] if 'host_port' in data else 15522
+
+	input_file: str = data['input_file'] if 'input_file' in data else "input.txt"
+	output_folder: str = data['output_folder'] if 'output_folder' in data else "output/"
+	start_client(server_ip, server_port, input_file, output_folder)
+	return True
+
 if __name__ == "__main__":
-	if len(sys.argv) < 2:
-		start_client()
-	else:
-		start_client(sys.argv[1])
+	handle_args(sys.argv)

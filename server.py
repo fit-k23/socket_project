@@ -4,23 +4,13 @@ import json
 import sys
 
 from msg import *
-from utils import get_ip
 
 print(sys.argv)
 
-def parse_file_info(directory: str):
-	files_info = []
-	for filename in os.listdir(directory):
-		filepath = os.path.join(directory, filename)
-		if os.path.isfile(filepath):
-			files_info.append({
-				"name": filename,
-				"size": os.path.getsize(filepath)
-			})
-	return files_info
+from utils import get_ip, parse_file_info, join_path
 
-def startServer(ip: str, port: int, buffer: int, input_folder: str = "input/", max_users: int = 1, chunk_order: bool = False):
-	input_path = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), input_folder))
+def start_server(ip: str, port: int, chunk_buffer: int, input_folder: str = "input/"):
+	input_path = join_path(__file__, input_folder)
 	os.makedirs(input_path, exist_ok=True)
 
 	server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -33,10 +23,10 @@ def startServer(ip: str, port: int, buffer: int, input_folder: str = "input/", m
 		print(f"[+] Accepted connection from client {addr}")
 		client_host, client_port = client_socket.getpeername()
 
-		t1 = json.dumps(parse_file_info(input_path), separators=(',', ':'))
-		t1l = len(t1)
-		client_socket.sendall((MSG_NOTIFY_DATA_BUFFER + str(len(t1)) + ":" + str(chunk_buffer)).ljust(32).encode('utf-8'))
-		client_socket.sendall(t1.encode('utf-8'))
+		file_info = json.dumps(parse_file_info(input_path), separators=(',', ':'))
+		file_info_len = len(file_info)
+		client_socket.sendall((MSG_NOTIFY_DATA_BUFFER + str(file_info_len) + ":" + str(chunk_buffer)).ljust(32).encode('utf-8'))
+		client_socket.sendall(file_info.encode('utf-8'))
 
 		while True:
 			try:
@@ -47,13 +37,16 @@ def startServer(ip: str, port: int, buffer: int, input_folder: str = "input/", m
 					print(f"[-] Disconnected with client ({client_host}:{client_port}).")
 					break
 			except ConnectionResetError:
+				print(f"[-] Connection with client ({client_host}:{client_port}) is broken.")
 				break
+
+			print(f"[*] Client ({client_host}:{client_port}) requested to download {response.decode().splitlines()}")
 
 			for file in response.decode().splitlines():
 				if not os.path.exists(input_path + file):
-					print(f"[!] File \"{file}\" does not exist.")
+					print(f"[!] The requested file \"{file}\" does not exist.")
 					continue
-				print(f"[*] Client ({client_host}:{client_port}) requested to download {file}")
+				# print(f"[*] Client ({client_host}:{client_port}) requested to download {file}")
 				try:
 					with open(input_path + file, 'rb') as f:
 						while True:
@@ -67,7 +60,7 @@ def startServer(ip: str, port: int, buffer: int, input_folder: str = "input/", m
 							if raw_buffer_len < chunk_buffer:
 								client_socket.sendall(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
 								# print("L1")
-								print(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
+								# print(bytes_read + MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
 								break
 							else:
 								client_socket.sendall(bytes_read)
@@ -76,26 +69,20 @@ def startServer(ip: str, port: int, buffer: int, input_folder: str = "input/", m
 				except Exception as e:
 					print(f"Error: {e}")
 				finally:
-					# if raw_buffer_len < chunk_buffer:
-					# 	if raw_buffer_len + len(MSG_FILE_TRANSFER_END) > chunk_buffer:
-					# 		client_socket.sendall(b'\0' * (chunk_buffer - raw_buffer_len))
-					# 	else:
-					# 		client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer - raw_buffer_len))
-					# else:
-					print("L2.5")
+					# print("L2.5")
 					if raw_buffer_len >= chunk_buffer:
 						try:
 							client_socket.sendall(MSG_FILE_TRANSFER_END.ljust(chunk_buffer))
 						except ConnectionResetError:
 							break
-						print("L3")
-						print(MSG_FILE_TRANSFER_END.ljust(chunk_buffer))
-					print("L4")
+						# print("L3")
+						# print(MSG_FILE_TRANSFER_END.ljust(chunk_buffer))
+					# print("L4")
 
 if __name__ == '__main__':
 	data = json.load(open('server.json'))
 	server_ip = get_ip(data['ip'])
 	server_port = data['port']
-	chunk_buffer = int(data['buffer'])
+	# chunk_buffer = int(data['buffer'])
 
-	startServer(server_ip, server_port, chunk_buffer)
+	start_server(server_ip, server_port, int(data['buffer']))
