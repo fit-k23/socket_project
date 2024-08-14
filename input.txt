@@ -1,8 +1,8 @@
 file1.txt NORMAL
 meow.txt HIGH
-hala
+hala HIGH
 cat.tma
-lmao.txt
-video.mp4
+lmao.txt HIGH
+video.mp4 HIGH
 test_123.txt
 huge.zip

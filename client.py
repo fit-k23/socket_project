@@ -7,7 +7,6 @@ import threading
 import time
 
 import colorama
-
 colorama.init()
 
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, DownloadColumn, SpinnerColumn
@@ -26,21 +25,23 @@ def generate_request_file(input_file_path: str, output_folder_path: str, silent:
 	try:
 		with open(input_file_path, 'r') as f:
 			raw_file_data = f.read().splitlines()
+			# print(raw_file_data)
 			for line in raw_file_data:
 				lr = line.split()
 				file_name = lr[0]
 				file_priority_str = lr[1] if len(lr) > 1 else ''
+				# print(file_name)
 				if file_name == "" or file_name not in server_files:
-					request_files.pop(file_name)
+					if file_name in request_files:
+						request_files.pop(file_name)
 					continue
-
 				file_path = output_folder_path + file_name
 				downloaded_size = get_file_size(file_path)
+
 				if downloaded_size == server_files[file_name]:
 					request_files.pop(file_name)
 					continue
-
-				if downloaded_size != -1:
+				else:
 					if not silent:
 						print(f"[!] The requested file \"{file_name}\" haven't done downloading yet. Re-queued to be downloaded!")
 
@@ -135,7 +136,7 @@ def start_client(server_ip: str, server_port: int, input_file: str = "input.txt"
 				file_size = int(server_files[request_file])
 				output_file_path = output_folder + request_file
 				if request_file not in task_ids:
-					task_ids[request_file] = progress.add_task(f"[green]" + request_file, total=file_size, start=False)
+					task_ids[request_file] = progress.add_task(f"[green]" + request_file, total=file_size, start=True)
 					file_objs[request_file] = open(output_file_path, 'wb')
 
 			request_files_json = json.dumps(request_files, separators=(',', ':'))
