@@ -19,7 +19,6 @@ def handle_client(client_socket: socket, chunk_buffer: int, file_info: str, inpu
 	client_socket.sendall(file_info.encode('utf-8'))
 
 	request_files: dict = {}
-
 	file_objs = {}
 
 	while True:
@@ -57,11 +56,10 @@ def handle_client(client_socket: socket, chunk_buffer: int, file_info: str, inpu
 
 				file_obj = file_objs[request_file]
 				bytes_read = file_obj.read(prioritied_chunk_buffer)
-				print(bytes_read, "\n\n")
+				# print(bytes_read, "\n\n")
 				raw_buffer_len = len(bytes_read)
 				if raw_buffer_len < prioritied_chunk_buffer:
-					client_socket.sendall(
-						bytes_read + MSG_FILE_TRANSFER_END.ljust(prioritied_chunk_buffer - raw_buffer_len))
+					client_socket.sendall(bytes_read.ljust(prioritied_chunk_buffer))
 					request_files.pop(request_file)
 					file_objs[request_file].close()
 					file_objs.pop(request_file)

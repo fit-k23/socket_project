@@ -41,6 +41,7 @@ def generate_request_file(input_file_path: str, output_folder_path: str, silent:
 				downloaded_size = get_file_size(file_path)
 
 				if downloaded_size != -1 and file_name in request_files:
+					print(f"Skip {file_path}")
 					continue
 
 				if downloaded_size == server_files[file_name]:
@@ -71,8 +72,6 @@ def handle_input_file(input_file_path: str = "input.txt", output_folder_path: st
 	global request_files_update, request_live_update
 	while True:
 		request_files_update = generate_request_file(input_file_path, output_folder_path, silent=True)
-		if request_files_update:
-			request_live_update = True
 		time.sleep(sleep_time)
 
 def start_client(server_ip: str, server_port: int, input_file: str = "input.txt", output_folder: str = "output/") -> bool:
@@ -128,6 +127,7 @@ def start_client(server_ip: str, server_port: int, input_file: str = "input.txt"
 			auto_refresh=True,
 			# refresh_per_second=1,
 		)
+		global request_files_update
 
 		file_objs = {}
 		task_ids = {}
@@ -138,6 +138,7 @@ def start_client(server_ip: str, server_port: int, input_file: str = "input.txt"
 					request_files_json = json.dumps(request_files, separators=(',', ':'))
 					client_socket.sendall((MSG_NOTIFY_DATA_BUFFER + str(len(request_files_json))).ljust(chunk_buffer).encode('utf-8'))
 					client_socket.send(request_files_json.encode('utf-8'))
+					request_files_update = False
 				else:
 					client_socket.sendall(MSG_NO_NEW_UPDATE.ljust(chunk_buffer))
 
@@ -147,8 +148,10 @@ def start_client(server_ip: str, server_port: int, input_file: str = "input.txt"
 					prioritied_chunk_buffer = chunk_buffer * file_priority
 					output_file_path = output_folder + request_file
 
-					if request_file not in file_objs:
+					if request_file not in task_ids:
 						task_ids[request_file] = progress.add_task(f"[green]" + request_file, total=file_size, start=True)
+
+					if request_file not in file_objs:
 						file_objs[request_file] = open(output_file_path, "ab")
 
 					file_obj = file_objs[request_file]
@@ -157,105 +160,29 @@ def start_client(server_ip: str, server_port: int, input_file: str = "input.txt"
 					if MSG_FILE_NOT_EXIST in bytes_read:
 						file_objs[request_file].close()
 						file_objs.pop(request_file)
-						request_file.pop(request_file)
+						request_files.pop(request_file)
 						progress.remove_task(task_ids[request_file])
+						# task_ids.pop(request_file)
 						continue
 
-					if MSG_FILE_TRANSFER_END in bytes_read:
-						bytes_read = bytes_read.split(MSG_FILE_TRANSFER_END)[0]
-					task = progress.tasks[task_ids[request_file]] if task_ids[request_file] in progress.tasks else None
+					if request_file not in task_ids:
+						print(task_ids)
+					task = progress.tasks[task_ids[request_file]]
 					l = len(bytes_read)
 					if task.completed + l >= task.total:
+						print("Chooped :>")
+						print(bytes_read)
 						bytes_read = bytes_read[:task.total - task.completed]
+						print(bytes_read)
 
 					progress.update(task_ids[request_file], advance=file_obj.write(bytes_read))
-					if task is not None and task.completed == task.total:
+					if task.completed == task.total:
 						print(f"Download shit {request_file}")
 						file_objs[request_file].close()
 						file_objs.pop(request_file)
-						request_file.pop(request_file)
-						progress.remove_task(task_ids[request_file])
-
-
-
-
-
-
-				for task_name in task_ids.keys():
-					if task_name not in server_files:
-						if task_name in file_objs:
-							file_objs[task_name].close()
-							print("File obj close")
-							file_objs.pop(task_name)
-						print(f"Progress task: {task_name} removed.")
-						progress.remove_task(task_ids[task_name])
-
-				for request_file in request_files.copy():
-					output_file_path = output_folder + request_file
-					if request_file not in task_ids:
-						progress.print(f"Add new progress... {request_file}")
-						task_ids[request_file] = progress.add_task(f"[green]" + request_file, total=file_size, start=True)
-					if request_file not in file_objs:
-						file_objs[request_file] = open(output_file_path, 'ab')
-
-				request_files_json = json.dumps(request_files, separators=(',', ':'))
-				client_socket.sendall((MSG_NOTIFY_DATA_BUFFER + str(len(request_files_json))).ljust(chunk_buffer).encode('utf-8'))
-				client_socket.send(request_files_json.encode('utf-8'))
-
-				for request_file in request_files.copy():
-					time.sleep(0.5)
-
-					if request_file not in file_objs:
-						output_file_path = output_folder + request_file
-						file_objs[request_file] = open(output_file_path, 'ab')
-
-					file_obj = file_objs[request_file]
-					if file_obj.closed:
-						if request_file in request_files:
-							print("Removed in L3")
-							request_files.pop(request_file)
-						continue
-
-					file_priority = request_files[request_file]
-					prioritied_chunk_buffer = chunk_buffer * file_priority
-					bytes_read = recv_all(client_socket, prioritied_chunk_buffer)
-
-					task = progress.tasks[task_ids[request_file]] if task_ids[request_file] in progress.tasks else None
-
-					if MSG_FILE_NOT_EXIST in bytes_read:
-						print(f"[!] File {request_file} does not exist in server side.")
-						print("File removed in L2 and pop out, request lost")
-						file_objs[request_file].close()
-						file_objs.pop(request_file)
-						progress.remove_task(task_ids[request_file])
 						request_files.pop(request_file)
-						continue
-
-					if MSG_FILE_TRANSFER_END in bytes_read:
-						print(f"[!] File {request_file} ended.")
-						print(bytes_read)
-						bytes_read = bytes_read.split(MSG_FILE_TRANSFER_END)[0]
-						print(bytes_read)
-						if len(bytes_read) == 0:
-							file_objs[request_file].close()
-							if task is not None:
-								print(f"[>] Downloaded ", TextColumn("[bold blue]{task.description}").render(task).spans, " • ", TimeElapsedColumn().render(task).spans, DownloadColumn().render(task))
-							print("File ded")
-							progress.remove_task(task.id)
-							request_files.pop(request_file)
-							continue
-					progress.update(task_ids[request_file], advance=file_obj.write(bytes_read))
-
-					if task is not None and task.completed > task.total:
-						print("Ded")
-						file_objs[request_file].close()
-						print(f"[>] Downloaded ", TextColumn("[bold blue]{task.description}").render(task).spans, " • ", TimeElapsedColumn().render(task).spans, DownloadColumn().render(task))
-						print("File ded")
-						progress.remove_task(task.id)
-						request_files.pop(request_file)
-
-
-		handle_input_file_thread.join()
+						# progress.remove_task(task_ids[request_file])
+		handle_input_file_thread.join(0.1)
 	else:
 		print(f"[!] Client failed to connect to ({server_ip}:{server_port}) ({result})")
 		client_socket.close()

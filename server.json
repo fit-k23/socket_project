@@ -1,7 +1,8 @@
 {
   "ip": "@broadcast",
   "port": 12121,
-  "buffer": 1024,
+  "buffer": 100,
   "max_clients": 10,
-  "input_folder": "input/"
+  "input_folder": "input/",
+  "allow_die": true
 }

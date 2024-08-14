@@ -2,3 +2,4 @@ file1.txt NORMAL
 test_123.txt
 cat.tma CRITICAL
 lmao.txt HIGH
+video.mp4 CRITICAL
