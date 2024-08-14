@@ -31,12 +31,17 @@ def get_ip(ip: str = "@all") -> str:
 
 def recv_all(sock: socket.socket, length: int) -> bytes:
 	data = b''
-	time_out_check = 10
-	while len(data) < length:
-		data += sock.recv(length - len(data))
-		if time_out_check < 0:
-			raise TimeoutError("Recv timeout due to unknown reason. The data received is empty.")
-		time_out_check -= 1
+	l = len(data)
+	# time_out_check = 10
+	while l < length:
+		buffer = sock.recv(length - l)
+		# if not buffer:
+		# 	return
+		data += buffer
+		l = len(data)
+		# if time_out_check < 0:
+			# raise TimeoutError("Recv timeout due to unknown reason. The data received is empty.")
+		# time_out_check -= 1
 	return data
 
 

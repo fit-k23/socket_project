@@ -1,4 +1,45 @@
-[WinError 10048] Only one usage of each socket address (protocol/network address/port) is normally permitted
-[WinError 10048] Only one usage of each socket address (protocol/network address/port) is normally permitted
-[WinError 10048] Only one usage of each socket address (protocol/network address/port) is normally permitted
-Hello :>
+Server side is all process done to run the game. Things like updating mobs, updating redstone, calculation of speed, spawning, block breaking, all done by the server.
+On single player your device both runs the server and the client. It both need to perform those calculations and display you your world (which is what your client does). If you turn on multiplayer, it would just enable connection between external clients, but the server still exist.
+On a server, your device only runs the client, as all calculations are done by an external server (if your device does not host that said server)
+
+Explore how a toxin-producing bacterium causes tetanus, and how to identify its common symptoms and best prevention practices.
+
+--
+
+In the 5th century, a ship master was suffering from a nasty infection that caused his jaws to press together, his teeth
+to lock up, and the muscles in his neck and spine to spasm. Today we know this account to be one the first recorded cases
+of tetanus. So, what causes this peculiar infection? Louise Thwaites explores how tetanus affects our bodies, and how we
+ can prevent it.
+
+Lesson by Louise Thwaites, directed by Andrew Foerster, Rewfoe.
+
+Support Our Non-Profit Mission
+----------------------------------------------
+Support us on Patreon: http://bit.ly/TEDEdPatreon
+Check out our merch: http://bit.ly/TEDEDShop
+----------------------------------------------
+
+Connect With Us
+----------------------------------------------
+Sign up for our newsletter: http://bit.ly/TEDEdNewsletter
+Follow us on Facebook: http://bit.ly/TEDEdFacebook
+Find us on Twitter: http://bit.ly/TEDEdTwitter
+Peep us on Instagram: http://bit.ly/TEDEdInstagram
+----------------------------------------------
+
+Keep Learning
+----------------------------------------------
+View full lesson: https://ed.ted.com/lessons/why-is-it-...
+Dig deeper with additional resources: https://ed.ted.com/lessons/why-is-it-...
+
+Animator's website: https://rewfoe.com
+Music: https://www.jasonstam.com
+----------------------------------------------
+
+Thank you so much to our patrons for your support! Without you this video would not be possible! OnlineBookClub.org,
+Eric Shear, Leith Salem, Omar Hicham, Adrian Rotaru, Brad Sullivan, Karen Ho, Niklas Frimberger, Hunter Manhart,
+Nathan Nguyen, Igor Stavchanskiy, James R DeVries, Grace Huo, Diana Huang, Chau Hong Diem, Orlellys Torre, Corheu,
+Thomas Mee, Maryann H McCrory, Blas Borde, John Hellmann, Poompak Meephian, Chuck Wofford, Adam Pagan, Wes Winn, Conder
+Shou, ntiger, Noname, Hansan Hu, David D, Mac Hyney, Keith Ellison, robin valero walters, Lynne Truesdale, Gatsby Dkdc,
+Matthew Neal, Denis Chon, Julian Oberhofer, Monte Carroll, Eddy, Jay M, Constantino Victor Delgado, Andrea Galvagni,
+Andrew Tweddle, Laurel-Ann Rice, Fernando A. Endo, Helen Lee, pam morgan, sarim haq and Gerardo Castro.

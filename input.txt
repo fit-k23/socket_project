@@ -1,8 +1,4 @@
 file1.txt NORMAL
-meow.txt HIGH
-hala HIGH
-cat.tma
-lmao.txt HIGH
-video.mp4 HIGH
 test_123.txt
-huge.zip
+cat.tma CRITICAL
+lmao.txt HIGH
