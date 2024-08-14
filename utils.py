@@ -1,6 +1,17 @@
 import os
 import socket
 
+def get_priority(input: str) -> int:
+	match input:
+		case "NORMAL":
+			return 1
+		case "HIGH":
+			return 4
+		case "CRITICAL":
+			return 10
+		case _:
+			return 0
+
 def get_ip(ip: str = "@all") -> str:
 	match ip:
 		case '@all':
@@ -18,16 +29,32 @@ def get_ip(ip: str = "@all") -> str:
 				raise Exception(f'Invalid ip: {ip}')
 			return ip
 
+def recv_all(sock: socket.socket, length: int) -> bytes:
+	data = b''
+	time_out_check = 10
+	while len(data) < length:
+		data += sock.recv(length - len(data))
+		if time_out_check < 0:
+			raise TimeoutError("Recv timeout due to unknown reason. The data received is empty.")
+		time_out_check -= 1
+	return data
+
+
 def parse_file_info(directory: str):
-	files_info = []
+	files_info = {}
 	for filename in os.listdir(directory):
 		filepath = os.path.join(directory, filename)
-		if os.path.isfile(filepath):
-			files_info.append({
-				"name": filename,
-				"size": os.path.getsize(filepath)
-			})
+		file_size = get_file_size(filepath)
+		if file_size != -1:
+			files_info[filename] = file_size
 	return files_info
+
+def filesize_format(num):
+    for unit in (" bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB"):
+        if abs(num) < 1024.0:
+            return f"{num:3.2f}{unit}"
+        num /= 1024.0
+    return f"{num:.2f}Y"
 
 def get_file_size(file_path) -> int:
 	"""Return the size of a file in bytes."""

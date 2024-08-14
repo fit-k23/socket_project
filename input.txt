@@ -1,5 +1,5 @@
-file1.txt
-meow.txt
+file1.txt NORMAL
+meow.txt HIGH
 hala
 cat.tma
 lmao.txt

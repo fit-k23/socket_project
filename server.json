@@ -1,8 +1,7 @@
 {
   "ip": "@broadcast",
-  "port": 15134,
+  "port": 12121,
   "buffer": 1024,
-  "max_clients": 1,
-  "input_folder": "input/",
-  "chunk_order": false
+  "max_clients": 10,
+  "input_folder": "input/"
 }
