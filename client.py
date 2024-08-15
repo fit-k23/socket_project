@@ -201,7 +201,6 @@ def start_client(server_ip: str, server_port: int, input_file: str = "input.txt"
 							download_log += str(render.render(task))
 						progress.console.print(f"[*] {download_log}")
 						progress.remove_task(task.id)
-						# print(f"Remove task {task.id}")
 					request_files.remove(request_file)
 				print("Download ended! Waiting for new request...")
 	else:
