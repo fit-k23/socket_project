@@ -2,6 +2,6 @@
   "host_ip": "@localhost",
   "host_port": 12121,
   "input_file": "input.txt",
-  "input_sleep": 0,
+  "input_sleep": 2,
   "output_folder": "output/"
 }

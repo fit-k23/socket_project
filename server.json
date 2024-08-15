@@ -3,6 +3,5 @@
   "port": 12121,
   "buffer": 4096,
   "max_clients": 10,
-  "input_folder": "input/",
-  "allow_die": true
+  "input_folder": "input/"
 }
