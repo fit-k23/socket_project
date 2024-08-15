@@ -3,6 +3,5 @@
   "port": 15134,
   "buffer": 1024,
   "max_clients": 1,
-  "input_folder": "input/",
-  "chunk_order": false
+  "input_folder": "input/"
 }
