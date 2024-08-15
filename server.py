@@ -9,11 +9,8 @@ from typing import List
 from msg import *
 from utils import get_ip, parse_file_info, join_path
 
-# clients = []
-
 def handle_client(client_socket: socket, chunk_buffer: int, file_info: str, input_path: str):
 	client_host, client_port = client_socket.getpeername()
-	print(f"Client {client_host}:{client_port} is threaded.")
 
 	client_socket.sendall((MSG_NOTIFY_DATA_BUFFER + str(len(file_info)) + ":" + str(chunk_buffer)).ljust(1024).encode('utf-8'))
 	client_socket.sendall(file_info.encode('utf-8'))
@@ -21,54 +18,64 @@ def handle_client(client_socket: socket, chunk_buffer: int, file_info: str, inpu
 	request_files: dict = {}
 	file_objs = {}
 
-	while True:
-		try:
-			response = client_socket.recv(chunk_buffer)
-			if not response:
-				break
-
-			if MSG_NO_NEW_UPDATE not in response:
-				if MSG_NOTIFY_DATA_BUFFER.encode('utf-8') in response:
-					print("Recieved data msg notify")
-					request_files_json_size = int(response.split(MSG_NOTIFY_DATA_BUFFER.encode())[-1])
-					print(request_files_json_size)
-					request_files_json_return = client_socket.recv(request_files_json_size).decode('utf-8')
-					request_files = json.loads(request_files_json_return)
-					print(f"Client {client_host}:{client_port} requested to download {request_files}")
-				print(response)
-				if MSG_CLIENT_DISCONNECT in response:
-					print(f"[-] Disconnected with client ({client_host}:{client_port}).")
-					# clients.pop(client_host + client_port)
+	try:
+		while True:
+			try:
+				response = client_socket.recv(chunk_buffer)
+				if not response:
 					break
-				print(f"[*] Client ({client_host}:{client_port}) requested to download {request_files}")
 
-			for request_file in request_files.copy():
-				file_priority = request_files[request_file]
-				prioritied_chunk_buffer = chunk_buffer * file_priority
-				if not os.path.exists(input_path + request_file):
-					client_socket.sendall(MSG_FILE_NOT_EXIST.ljust(prioritied_chunk_buffer))
-					print(f"[!] The requested file \"{request_file}\" does not exist.")
-					request_files.pop(request_file)
+				if MSG_NO_NEW_UPDATE not in response:
+					if MSG_NOTIFY_DATA_BUFFER.encode('utf-8') in response:
+						print("Recieved data msg notify")
+						updates_files_json_size = int(response.split(MSG_NOTIFY_DATA_BUFFER.encode())[-1])
+						updates_files_json_return = client_socket.recv(updates_files_json_size).decode('utf-8')
+						updates_files = json.loads(updates_files_json_return)
+						for update in updates_files:
+							request_files[update] = updates_files[update]
+						print(f"Client {client_host}:{client_port} requested to download more {updates_files}")
+						print(updates_files, request_files)
+					if MSG_CLIENT_DISCONNECT in response:
+						print(f"[-] Disconnected with client ({client_host}:{client_port}).")
+						break
+				# 	print("Wtf moew", response)
+				# else:
+				# 	print("Nuh uh")
 
-					continue
-				if request_file not in file_objs:
-					file_objs[request_file] = open(input_path + request_file, 'rb')
+				for request_file in request_files.copy():
+					file_priority = request_files[request_file]
+					prioritied_chunk_buffer = chunk_buffer * file_priority
+					if not os.path.exists(input_path + request_file):
+						client_socket.sendall(MSG_FILE_NOT_EXIST.ljust(prioritied_chunk_buffer))
+						print(f"[!] The requested file \"{request_file}\" does not exist.")
+						request_files.pop(request_file)
 
-				file_obj = file_objs[request_file]
-				bytes_read = file_obj.read(prioritied_chunk_buffer)
-				# print(bytes_read, "\n\n")
-				raw_buffer_len = len(bytes_read)
-				if raw_buffer_len < prioritied_chunk_buffer:
-					client_socket.sendall(bytes_read.ljust(prioritied_chunk_buffer))
-					request_files.pop(request_file)
-					file_objs[request_file].close()
-					file_objs.pop(request_file)
-				else:
-					client_socket.sendall(bytes_read)
-		except ConnectionResetError:
-			print(f"[-] Connection with client ({client_host}:{client_port}) is broken.")
-			client_socket.close()
-			break
+						continue
+					if request_file not in file_objs:
+						file_objs[request_file] = open(input_path + request_file, 'rb')
+
+					file_obj = file_objs[request_file]
+					bytes_read = file_obj.read(prioritied_chunk_buffer)
+					if not bytes_read:
+						request_files.pop(request_file)
+						file_objs[request_file].close()
+						file_objs.pop(request_file)
+						continue
+					raw_buffer_len = len(bytes_read)
+					if raw_buffer_len < prioritied_chunk_buffer:
+						client_socket.sendall(bytes_read.ljust(prioritied_chunk_buffer))
+						request_files.pop(request_file)
+						file_objs[request_file].close()
+						file_objs.pop(request_file)
+					else:
+						client_socket.sendall(bytes_read)
+			# if file_obj.
+			except ConnectionResetError:
+				print(f"[-] Connection with client ({client_host}:{client_port}) is broken.")
+				client_socket.close()
+				break
+	except ConnectionError:
+		print(f"[-] Connection with client ({client_host}:{client_port}) is broken real bad.")
 
 def start_server(ip: str, port: int, chunk_buffer: int, input_folder: str = "input/", max_user: int = 2):
 	input_path = join_path(__file__, input_folder)
@@ -94,12 +101,10 @@ def start_server(ip: str, port: int, chunk_buffer: int, input_folder: str = "inp
 
 	def handle_exit(signum, frame):
 		print("[x] Server was forced to shutting down.")
-		for t in threads:
-			if t is not None:
-				t.join(0.1)
 		sys.exit(0)
 
-	signal.signal(signal.SIGINT, handle_exit)
+	# signal.signal(signal.SIGINT, handle_exit)
+	signal.signal(signal.SIGINT, signal.SIG_DFL) # interrupt all :<
 
 	try:
 		while True:
@@ -113,6 +118,7 @@ def start_server(ip: str, port: int, chunk_buffer: int, input_folder: str = "inp
 			print(f"[+] Accepted connection from client {addr} [{first_free_thread + 1}/{max_user}]")
 			threads[first_free_thread] = threading.Thread(target=handle_client, args=(client_socket,chunk_buffer, file_info, input_path), daemon=True)
 			threads[first_free_thread].start()
+			print('loblolly')
 	except KeyboardInterrupt as err:
 		print(f"[x] Interrupted! Server is closing... {err}")
 	finally:

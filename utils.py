@@ -1,8 +1,15 @@
 import os
 import socket
 
-def get_priority(input: str) -> int:
-	match input:
+from rich.progress import Progress, TaskID, Task
+
+def get_task_from_id(progress: Progress, tid: TaskID) -> Task:
+	for task in progress.tasks:
+		if task.id == tid:
+			return task
+
+def get_priority(_input: str) -> int:
+	match _input:
 		case "NORMAL":
 			return 1
 		case "HIGH":
@@ -34,7 +41,10 @@ def recv_all(sock: socket.socket, length: int) -> bytes:
 	l = len(data)
 	# time_out_check = 10
 	while l < length:
-		buffer = sock.recv(length - l)
+		try:
+			buffer = sock.recv(length - l)
+		except socket.timeout:
+			return b'SKIP'
 		# if not buffer:
 		# 	return
 		data += buffer
@@ -55,11 +65,11 @@ def parse_file_info(directory: str):
 	return files_info
 
 def filesize_format(num):
-    for unit in (" bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB"):
-        if abs(num) < 1024.0:
-            return f"{num:3.2f}{unit}"
-        num /= 1024.0
-    return f"{num:.2f}Y"
+	for unit in (" bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB"):
+		if abs(num) < 1024.0:
+			return f"{num:3.2f}{unit}"
+		num /= 1024.0
+	return f"{num:.2f}Y"
 
 def get_file_size(file_path) -> int:
 	"""Return the size of a file in bytes."""
