@@ -7,7 +7,8 @@ import threading
 from typing import List
 
 from msg import *
-from utils import get_ip, parse_file_info, join_path
+from utils import get_ip, parse_file_info, join_path, recv_all
+
 
 def handle_client(client_socket: socket, chunk_buffer: int, file_info: str, input_path: str):
 	client_host, client_port = client_socket.getpeername()
@@ -21,7 +22,8 @@ def handle_client(client_socket: socket, chunk_buffer: int, file_info: str, inpu
 	try:
 		while True:
 			try:
-				response = client_socket.recv(chunk_buffer)
+				response = recv_all(client_socket, chunk_buffer)
+				# response = client_socket.recv(chunk_buffer)
 				if not response:
 					break
 
@@ -38,9 +40,6 @@ def handle_client(client_socket: socket, chunk_buffer: int, file_info: str, inpu
 					if MSG_CLIENT_DISCONNECT in response:
 						print(f"[-] Disconnected with client ({client_host}:{client_port}).")
 						break
-				# 	print("Wtf moew", response)
-				# else:
-				# 	print("Nuh uh")
 
 				for request_file in request_files.copy():
 					file_priority = request_files[request_file]

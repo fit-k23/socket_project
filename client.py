@@ -5,7 +5,6 @@ import socket
 import sys
 import threading
 import time
-from typing import Dict, Never
 
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, DownloadColumn, SpinnerColumn, Task
 
@@ -45,15 +44,15 @@ def generate_request_file(input_file_path: str, output_folder_path: str, silent:
 						print(f"Downloaded alr {file_name}")
 					continue
 
-				# if downloaded_size != -1 and file_name not in updates_files:
-
 				file_priority = get_priority(file_priority_str)
 				if file_priority == 0:
-					file_priority = 1
+					continue
 				if downloaded_size != -1 and file_name in request_files and file_priority == request_files[file_name]:
 					if not silent:
 						print(f"No update {file_name}")
 					continue
+				if downloaded_size > server_files[file_name]:
+					open(file_path, 'w').close();
 				changed = True
 				updates_files[file_name] = file_priority
 	except Exception as e:
@@ -130,7 +129,7 @@ def start_client(server_ip: str, server_port: int, input_file: str = "input.txt"
 			global request_files_update
 
 			file_objs = {}
-			tasks: Dict[str, Task] or Dict[Never] = {}
+			tasks = {}
 			with progress:
 				while not disconnected:
 					if request_files_update:
@@ -140,8 +139,7 @@ def start_client(server_ip: str, server_port: int, input_file: str = "input.txt"
 							request_files[update] = updates_files[update]
 
 						update_files_json = json.dumps(updates_files, separators=(',', ':'))
-						client_socket.sendall(
-							(MSG_NOTIFY_DATA_BUFFER + str(len(update_files_json))).ljust(chunk_buffer).encode('utf-8'))
+						client_socket.sendall((MSG_NOTIFY_DATA_BUFFER + str(len(update_files_json))).ljust(chunk_buffer).encode('utf-8'))
 						client_socket.send(update_files_json.encode('utf-8'))
 						progress.print(f"[>] Asked server to download more files: {updates_files}")
 						# progress.print(f"[>] Update File List: {request_files}")
@@ -151,7 +149,7 @@ def start_client(server_ip: str, server_port: int, input_file: str = "input.txt"
 						client_socket.sendall(MSG_NO_NEW_UPDATE.ljust(chunk_buffer))
 
 					for request_file in request_files.copy():
-						time.sleep(0.05)
+						# time.sleep(0.05)
 						file_size = int(server_files[request_file] if request_file in server_files else 0)
 						file_priority = request_files[request_file]
 						prioritied_chunk_buffer = chunk_buffer * file_priority
