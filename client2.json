@@ -1,0 +1,7 @@
+{
+  "host_ip": "192.168.0.184",
+  "host_port": 12121,
+  "input_file": "input2.txt",
+  "input_sleep": 2,
+  "output_folder": "output2/"
+}
